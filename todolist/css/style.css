@@ -1,0 +1,350 @@
+/* ---------- 테마 변수 ---------- */
+:root {
+  --bg: #f4f5fb;
+  --surface: #ffffff;
+  --surface-2: #eef0f7;
+  --border: #dfe2ee;
+  --text: #1d2133;
+  --muted: #646b88;
+  --accent: #4361e0;
+  --accent-soft: #e6ebff;
+  --accent-text: #ffffff;
+  --danger: #d63a40;
+  --prio-high: #e5484d;
+  --prio-normal: #f2a93b;
+  --prio-low: #3fb37f;
+  --shadow: 0 8px 30px rgba(30, 40, 90, 0.08);
+  --radius: 14px;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12141d;
+    --surface: #1b1e2b;
+    --surface-2: #242838;
+    --border: #2f3447;
+    --text: #e8eaf4;
+    --muted: #9ba2c2;
+    --accent: #7d93ff;
+    --accent-soft: #283056;
+    --accent-text: #10132a;
+    --danger: #ff7a7f;
+    --shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #12141d;
+  --surface: #1b1e2b;
+  --surface-2: #242838;
+  --border: #2f3447;
+  --text: #e8eaf4;
+  --muted: #9ba2c2;
+  --accent: #7d93ff;
+  --accent-soft: #283056;
+  --accent-text: #10132a;
+  --danger: #ff7a7f;
+  --shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+  color-scheme: dark;
+}
+
+/* ---------- 기본 ---------- */
+* { box-sizing: border-box; }
+
+/* display를 지정한 요소도 hidden 속성이면 숨긴다 */
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+button, input, select { font: inherit; color: inherit; }
+
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.app {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 32px 16px 96px;
+}
+
+/* ---------- 머리말 ---------- */
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+h1 { font-size: 24px; margin: 0; }
+.today { margin: 2px 0 0; color: var(--muted); }
+
+/* ---------- 버튼 ---------- */
+.btn {
+  border: none;
+  border-radius: 10px;
+  padding: 10px 18px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-sm { padding: 6px 12px; font-size: 14px; }
+.btn-primary { background: var(--accent); color: var(--accent-text); }
+.btn-primary:hover { filter: brightness(1.08); }
+.btn-ghost { background: transparent; color: var(--muted); }
+.btn-ghost:hover:not(:disabled) { background: var(--surface-2); color: var(--text); }
+.btn:disabled { opacity: 0.45; cursor: default; }
+
+.icon-btn {
+  width: 36px; height: 36px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 16px;
+}
+.icon-btn:hover { background: var(--surface-2); color: var(--text); }
+.icon-btn.danger:hover { color: var(--danger); }
+.theme-btn { width: 44px; height: 44px; font-size: 20px; }
+
+/* ---------- 안내 ---------- */
+.notice {
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+}
+.banner-actions { display: flex; gap: 6px; }
+
+/* ---------- 입력 ---------- */
+.add-form {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 8px;
+  padding: 8px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.add-form input,
+.add-form select {
+  min-width: 0;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: var(--surface-2);
+  padding: 10px 12px;
+}
+.add-form input:focus,
+.add-form select:focus { border-color: var(--accent); outline: none; }
+
+.hint { min-height: 20px; margin: 6px 4px 10px; font-size: 13px; color: var(--danger); }
+
+.shake { animation: shake 300ms; }
+@keyframes shake {
+  25% { transform: translateX(-6px); }
+  50% { transform: translateX(6px); }
+  75% { transform: translateX(-3px); }
+}
+
+/* ---------- 진행률 ---------- */
+.progress { margin-bottom: 16px; }
+.progress-head {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  font-size: 14px;
+  color: var(--muted);
+}
+.progress-percent { font-weight: 700; color: var(--text); }
+.progress-bar {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 250ms ease;
+}
+
+/* ---------- 필터 ---------- */
+.filters { display: flex; gap: 6px; margin-bottom: 10px; }
+.filter {
+  border: none;
+  border-radius: 999px;
+  padding: 6px 14px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.filter:hover { background: var(--surface-2); }
+.filter[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+.count { font-size: 12px; opacity: 0.8; }
+
+/* ---------- 목록 ---------- */
+.todo-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.todo-list:empty { display: none; }
+
+.todo {
+  display: grid;
+  grid-template-columns: auto auto auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px 8px 6px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  transition: opacity 150ms, transform 150ms;
+}
+.todo:last-child { border-bottom: none; }
+
+.handle { color: var(--muted); cursor: grab; font-size: 12px; letter-spacing: -2px; opacity: 0.5; }
+.todo-check { width: 20px; height: 20px; margin: 0; accent-color: var(--accent); cursor: pointer; }
+
+.prio-dot { width: 10px; height: 10px; border-radius: 50%; }
+.todo[data-priority="high"] .prio-dot { background: var(--prio-high); }
+.todo[data-priority="normal"] .prio-dot { background: var(--prio-normal); }
+.todo[data-priority="low"] .prio-dot { background: var(--prio-low); }
+
+.todo-text { overflow-wrap: anywhere; cursor: text; }
+.todo.done .todo-text { text-decoration: line-through; color: var(--muted); }
+
+.todo-edit {
+  min-width: 0;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: var(--surface-2);
+  padding: 6px 8px;
+}
+.todo-edit:focus { outline: none; }
+
+.todo-actions { display: flex; gap: 2px; }
+
+.todo.enter { animation: fade-in 150ms ease-out; }
+.todo.leaving { opacity: 0; transform: translateX(12px); }
+.todo.dragging { opacity: 0.4; }
+.todo.drop-before { box-shadow: inset 0 3px 0 var(--accent); }
+.todo.drop-after { box-shadow: inset 0 -3px 0 var(--accent); }
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(-6px); }
+}
+
+.empty {
+  margin: 0;
+  padding: 40px 16px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--muted);
+  text-align: center;
+}
+
+.app-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+.help { font-size: 13px; color: var(--muted); }
+
+/* ---------- 토스트 ---------- */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: calc(100% - 32px);
+  padding: 10px 12px 10px 16px;
+  border-radius: 12px;
+  background: #22263a;
+  color: #f1f3fb;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  animation: fade-in 150ms ease-out;
+}
+.toast-action {
+  border: none;
+  background: transparent;
+  color: #9fb2ff;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* ---------- 마우스 환경: 버튼은 올렸을 때만 ---------- */
+@media (hover: hover) and (pointer: fine) {
+  .todo-actions { opacity: 0; transition: opacity 120ms; }
+  .todo:hover .todo-actions,
+  .todo:focus-within .todo-actions { opacity: 1; }
+}
+
+/* ---------- 터치 환경: 큰 터치 영역, 끌기 손잡이 숨김 ---------- */
+@media (pointer: coarse) {
+  .icon-btn { width: 44px; height: 44px; }
+  .todo-check { width: 24px; height: 24px; }
+  .handle { display: none; }
+  .todo { grid-template-columns: auto auto 1fr auto; padding-left: 12px; }
+  .help { display: none; }
+}
+
+/* ---------- 좁은 화면 ---------- */
+@media (max-width: 480px) {
+  .app { padding-top: 20px; }
+  .add-form { grid-template-columns: 1fr auto; }
+  .add-form #new-todo { grid-column: 1 / -1; }
+  .help { display: none; }
+  .app-footer { justify-content: flex-end; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

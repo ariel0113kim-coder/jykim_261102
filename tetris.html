@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>블록 낙하 퍼즐</title>
+<style>
+  :root {
+    --bg: #0f1220;
+    --panel: #1a1f36;
+    --grid: #232a48;
+    --text: #e6e9f5;
+    --muted: #8a93b8;
+    --accent: #ffb547;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: radial-gradient(circle at 30% 20%, #1d2340, var(--bg) 70%);
+    color: var(--text);
+    font-family: "Segoe UI", "Malgun Gothic", sans-serif;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+  .game {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+  }
+  .board-wrap {
+    position: relative;
+    border: 3px solid #39426e;
+    border-radius: 8px;
+    box-shadow: 0 0 30px rgba(80, 110, 255, 0.25);
+    overflow: hidden;
+  }
+  canvas { display: block; background: var(--panel); }
+  .side { display: flex; flex-direction: column; gap: 14px; width: 160px; }
+  .box {
+    background: var(--panel);
+    border: 2px solid #39426e;
+    border-radius: 8px;
+    padding: 10px;
+  }
+  .box h3 {
+    font-size: 12px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+  }
+  .stat { font-size: 22px; font-weight: 700; }
+  .keys { font-size: 12px; line-height: 1.8; color: var(--muted); }
+  .keys b { color: var(--text); }
+  .overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(10, 12, 25, 0.82);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    text-align: center;
+  }
+  .overlay.hidden { display: none; }
+  .overlay h2 { font-size: 28px; color: var(--accent); }
+  .overlay p { color: var(--muted); font-size: 14px; }
+  button {
+    background: var(--accent);
+    color: #1a1a1a;
+    border: none;
+    padding: 10px 22px;
+    font-size: 16px;
+    font-weight: 700;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  button:hover { filter: brightness(1.1); }
+  .flash { color: var(--accent); font-weight: 700; min-height: 18px; font-size: 13px; }
+  .touch { display: none; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 12px; }
+  .touch button { padding: 12px 16px; font-size: 18px; background: #39426e; color: var(--text); }
+  @media (max-width: 560px) {
+    .game { flex-direction: column; align-items: center; }
+    .side { flex-direction: row; flex-wrap: wrap; width: 100%; justify-content: center; }
+    .side .box { flex: 1 1 100px; }
+    .keys-box { display: none; }
+    .touch { display: flex; }
+  }
+</style>
+</head>
+<body>
+<div>
+  <div class="game">
+    <div class="board-wrap">
+      <canvas id="board" width="300" height="600"></canvas>
+      <div class="overlay" id="overlay">
+        <h2 id="ovTitle">블록 낙하 퍼즐</h2>
+        <p id="ovText">줄을 채워 블록을 지우세요.<br>한 가지 색으로만 채운 줄은 보너스 x3!</p>
+        <button id="startBtn">시작하기</button>
+      </div>
+    </div>
+    <div class="side">
+      <div class="box"><h3>다음</h3><canvas id="next" width="120" height="80"></canvas></div>
+      <div class="box"><h3>보관</h3><canvas id="hold" width="120" height="80"></canvas></div>
+      <div class="box"><h3>점수</h3><div class="stat" id="score">0</div></div>
+      <div class="box"><h3>레벨</h3><div class="stat" id="level">1</div></div>
+      <div class="box"><h3>줄</h3><div class="stat" id="lines">0</div></div>
+      <div class="box"><h3>콤보</h3><div class="stat" id="combo">0</div><div class="flash" id="flash"></div></div>
+      <div class="box keys-box">
+        <h3>조작</h3>
+        <div class="keys">
+          <b>← →</b> 이동<br>
+          <b>↑ / X</b> 회전<br>
+          <b>Z</b> 반대 회전<br>
+          <b>↓</b> 천천히 내리기<br>
+          <b>Space</b> 바로 떨구기<br>
+          <b>C</b> 보관<br>
+          <b>P</b> 일시정지
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="touch">
+    <button data-act="left">◀</button>
+    <button data-act="rotate">⟳</button>
+    <button data-act="right">▶</button>
+    <button data-act="down">▼</button>
+    <button data-act="drop">⤓</button>
+    <button data-act="hold">보관</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  const COLS = 10, ROWS = 20, SIZE = 30;
+  const board = document.getElementById('board');
+  const ctx = board.getContext('2d');
+  const nextCtx = document.getElementById('next').getContext('2d');
+  const holdCtx = document.getElementById('hold').getContext('2d');
+
+  const COLORS = ['#4cc9f0', '#f72585', '#7bd389', '#ffb547', '#9d7bff', '#ff6b6b', '#5ee6d0'];
+
+  // 4칸짜리 블록 모양들
+  const SHAPES = [
+    [[1, 1, 1, 1]],
+    [[1, 1], [1, 1]],
+    [[0, 1, 0], [1, 1, 1]],
+    [[1, 0, 0], [1, 1, 1]],
+    [[0, 0, 1], [1, 1, 1]],
+    [[0, 1, 1], [1, 1, 0]],
+    [[1, 1, 0], [0, 1, 1]],
+  ];
+
+  let grid, piece, nextPiece, holdPiece, canHold, bag;
+  let score, lines, level, combo;
+  let dropInterval, dropCounter, lastTime, running, paused, rafId;
+
+  const $ = id => document.getElementById(id);
+  const overlay = $('overlay');
+
+  function emptyGrid() {
+    return Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+  }
+
+  // 7개 모양을 한 번씩 섞어서 꺼내는 방식
+  function takeFromBag() {
+    if (!bag || bag.length === 0) {
+      bag = [0, 1, 2, 3, 4, 5, 6];
+      for (let i = bag.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [bag[i], bag[j]] = [bag[j], bag[i]];
+      }
+    }
+    return bag.pop();
+  }
+
+  function makePiece(type) {
+    // 블록마다 색은 무작위 — 같은 색 줄 보너스를 노리는 재미
+    const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+    const shape = SHAPES[type].map(r => [...r]);
+    return { type, shape, color, x: Math.floor((COLS - shape[0].length) / 2), y: 0 };
+  }
+
+  function rotate(shape, dir) {
+    const h = shape.length, w = shape[0].length;
+    const out = Array.from({ length: w }, () => Array(h).fill(0));
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++)
+        if (dir > 0) out[x][h - 1 - y] = shape[y][x];
+        else out[w - 1 - x][y] = shape[y][x];
+    return out;
+  }
+
+  function collides(shape, px, py) {
+    for (let y = 0; y < shape.length; y++)
+      for (let x = 0; x < shape[y].length; x++) {
+        if (!shape[y][x]) continue;
+        const nx = px + x, ny = py + y;
+        if (nx < 0 || nx >= COLS || ny >= ROWS) return true;
+        if (ny >= 0 && grid[ny][nx]) return true;
+      }
+    return false;
+  }
+
+  function tryRotate(dir) {
+    const rotated = rotate(piece.shape, dir);
+    // 벽에 붙어 있을 때 옆으로 살짝 밀어서 회전 시도
+    for (const off of [0, -1, 1, -2, 2]) {
+      if (!collides(rotated, piece.x + off, piece.y)) {
+        piece.shape = rotated;
+        piece.x += off;
+        return;
+      }
+    }
+  }
+
+  function move(dx) {
+    if (!collides(piece.shape, piece.x + dx, piece.y)) piece.x += dx;
+  }
+
+  function softDrop() {
+    if (!collides(piece.shape, piece.x, piece.y + 1)) {
+      piece.y++;
+      score += 1;
+    } else {
+      lockPiece();
+    }
+    dropCounter = 0;
+  }
+
+  function hardDrop() {
+    let dist = 0;
+    while (!collides(piece.shape, piece.x, piece.y + 1)) { piece.y++; dist++; }
+    score += dist * 2;
+    lockPiece();
+    dropCounter = 0;
+  }
+
+  function hold() {
+    if (!canHold) return;
+    const current = piece.type;
+    if (holdPiece === null) {
+      holdPiece = current;
+      spawn();
+    } else {
+      piece = makePiece(holdPiece);
+      holdPiece = current;
+    }
+    canHold = false;
+  }
+
+  function lockPiece() {
+    piece.shape.forEach((row, y) => row.forEach((v, x) => {
+      if (v && piece.y + y >= 0) grid[piece.y + y][piece.x + x] = piece.color;
+    }));
+    clearLines();
+    spawn();
+  }
+
+  function clearLines() {
+    let cleared = 0, sameColor = 0;
+    for (let y = ROWS - 1; y >= 0; y--) {
+      if (grid[y].every(c => c)) {
+        if (grid[y].every(c => c === grid[y][0])) sameColor++;
+        grid.splice(y, 1);
+        grid.unshift(Array(COLS).fill(null));
+        cleared++;
+        y++;
+      }
+    }
+
+    if (cleared === 0) { combo = 0; updateHUD(); return; }
+
+    combo++;
+    const base = [0, 100, 300, 500, 800][cleared] * level;
+    const comboBonus = (combo - 1) * 50 * level;
+    const colorBonus = sameColor * 200 * level * 3;
+    score += base + comboBonus + colorBonus;
+    lines += cleared;
+
+    const newLevel = Math.floor(lines / 10) + 1;
+    if (newLevel !== level) {
+      level = newLevel;
+      dropInterval = Math.max(80, 800 - (level - 1) * 70);
+    }
+
+    const msgs = [];
+    if (cleared >= 4) msgs.push('4줄 동시 제거!');
+    if (sameColor) msgs.push('단색 보너스!');
+    if (combo > 1) msgs.push(combo + ' 콤보');
+    showFlash(msgs.join(' · '));
+    updateHUD();
+  }
+
+  let flashTimer;
+  function showFlash(text) {
+    $('flash').textContent = text;
+    clearTimeout(flashTimer);
+    flashTimer = setTimeout(() => ($('flash').textContent = ''), 1500);
+  }
+
+  function spawn() {
+    piece = nextPiece ? makePiece(nextPiece.type) : makePiece(takeFromBag());
+    if (nextPiece) piece.color = nextPiece.color;
+    nextPiece = makePiece(takeFromBag());
+    canHold = true;
+    if (collides(piece.shape, piece.x, piece.y)) gameOver();
+  }
+
+  function ghostY() {
+    let y = piece.y;
+    while (!collides(piece.shape, piece.x, y + 1)) y++;
+    return y;
+  }
+
+  function drawCell(c, x, y, color, size, alpha = 1) {
+    c.globalAlpha = alpha;
+    c.fillStyle = color;
+    c.fillRect(x * size + 1, y * size + 1, size - 2, size - 2);
+    c.fillStyle = 'rgba(255,255,255,0.25)';
+    c.fillRect(x * size + 1, y * size + 1, size - 2, 4);
+    c.fillStyle = 'rgba(0,0,0,0.2)';
+    c.fillRect(x * size + 1, y * size + size - 5, size - 2, 4);
+    c.globalAlpha = 1;
+  }
+
+  function draw() {
+    ctx.fillStyle = '#1a1f36';
+    ctx.fillRect(0, 0, board.width, board.height);
+
+    ctx.strokeStyle = '#232a48';
+    ctx.lineWidth = 1;
+    for (let x = 1; x < COLS; x++) {
+      ctx.beginPath(); ctx.moveTo(x * SIZE, 0); ctx.lineTo(x * SIZE, ROWS * SIZE); ctx.stroke();
+    }
+    for (let y = 1; y < ROWS; y++) {
+      ctx.beginPath(); ctx.moveTo(0, y * SIZE); ctx.lineTo(COLS * SIZE, y * SIZE); ctx.stroke();
+    }
+
+    grid.forEach((row, y) => row.forEach((c, x) => { if (c) drawCell(ctx, x, y, c, SIZE); }));
+
+    if (piece) {
+      const gy = ghostY();
+      piece.shape.forEach((row, y) => row.forEach((v, x) => {
+        if (v) drawCell(ctx, piece.x + x, gy + y, piece.color, SIZE, 0.2);
+      }));
+      piece.shape.forEach((row, y) => row.forEach((v, x) => {
+        if (v) drawCell(ctx, piece.x + x, piece.y + y, piece.color, SIZE);
+      }));
+    }
+  }
+
+  function drawPreview(c, type, color) {
+    c.clearRect(0, 0, 120, 80);
+    if (type === null || type === undefined) return;
+    const shape = SHAPES[type];
+    const s = 22;
+    const ox = (120 - shape[0].length * s) / 2 / s;
+    const oy = (80 - shape.length * s) / 2 / s;
+    shape.forEach((row, y) => row.forEach((v, x) => {
+      if (v) drawCell(c, x + ox, y + oy, color, s);
+    }));
+  }
+
+  function updateHUD() {
+    $('score').textContent = score;
+    $('lines').textContent = lines;
+    $('level').textContent = level;
+    $('combo').textContent = combo;
+  }
+
+  function loop(time = 0) {
+    if (!running) return;
+    const delta = time - lastTime;
+    lastTime = time;
+    if (!paused) {
+      dropCounter += delta;
+      if (dropCounter > dropInterval) {
+        if (!collides(piece.shape, piece.x, piece.y + 1)) piece.y++;
+        else lockPiece();
+        dropCounter = 0;
+      }
+      draw();
+      drawPreview(nextCtx, nextPiece.type, nextPiece.color);
+      drawPreview(holdCtx, holdPiece, canHold ? '#8a93b8' : '#4a5175');
+    }
+    rafId = requestAnimationFrame(loop);
+  }
+
+  function start() {
+    grid = emptyGrid();
+    bag = [];
+    nextPiece = null;
+    holdPiece = null;
+    score = 0; lines = 0; level = 1; combo = 0;
+    dropInterval = 800; dropCounter = 0; lastTime = performance.now();
+    paused = false; running = true;
+    spawn();
+    updateHUD();
+    overlay.classList.add('hidden');
+    cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(loop);
+  }
+
+  function gameOver() {
+    running = false;
+    draw();
+    $('ovTitle').textContent = '게임 오버';
+    $('ovText').innerHTML = `점수 <b>${score}</b> · 줄 <b>${lines}</b> · 레벨 <b>${level}</b>`;
+    $('startBtn').textContent = '다시 하기';
+    overlay.classList.remove('hidden');
+  }
+
+  function togglePause() {
+    if (!running) return;
+    paused = !paused;
+    if (paused) {
+      $('ovTitle').textContent = '일시정지';
+      $('ovText').textContent = 'P 키를 눌러 계속하기';
+      $('startBtn').textContent = '처음부터';
+      overlay.classList.remove('hidden');
+    } else {
+      overlay.classList.add('hidden');
+      lastTime = performance.now();
+    }
+  }
+
+  function act(name) {
+    if (!running || paused) return;
+    switch (name) {
+      case 'left': move(-1); break;
+      case 'right': move(1); break;
+      case 'down': softDrop(); break;
+      case 'drop': hardDrop(); break;
+      case 'rotate': tryRotate(1); break;
+      case 'rotateBack': tryRotate(-1); break;
+      case 'hold': hold(); break;
+    }
+    if (running) { draw(); updateHUD(); }
+  }
+
+  const KEYMAP = {
+    ArrowLeft: 'left', ArrowRight: 'right', ArrowDown: 'down', ArrowUp: 'rotate',
+    KeyX: 'rotate', KeyZ: 'rotateBack', Space: 'drop', KeyC: 'hold',
+  };
+
+  document.addEventListener('keydown', e => {
+    if (e.code === 'KeyP') { togglePause(); return; }
+    if (e.code === 'Enter' && !running) { start(); return; }
+    const a = KEYMAP[e.code];
+    if (a) { e.preventDefault(); act(a); }
+  });
+
+  document.querySelectorAll('.touch button').forEach(b =>
+    b.addEventListener('click', () => act(b.dataset.act)));
+
+  $('startBtn').addEventListener('click', start);
+
+  // 첫 화면용 빈 보드
+  grid = emptyGrid();
+  draw();
+})();
+</script>
+</body>
+</html>

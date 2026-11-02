@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>오늘의 할일</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<main class="app">
+  <header class="app-header">
+    <div>
+      <h1>오늘의 할일</h1>
+      <p class="today" id="today-date"></p>
+    </div>
+    <button type="button" class="icon-btn theme-btn" id="theme-btn"></button>
+  </header>
+
+  <p class="notice" id="storage-notice" role="status" hidden></p>
+
+  <div class="banner" id="carry-banner" role="status" aria-live="polite" hidden>
+    <span id="carry-text"></span>
+    <div class="banner-actions">
+      <button type="button" class="btn btn-primary btn-sm" id="carry-accept">가져오기</button>
+      <button type="button" class="btn btn-ghost btn-sm" id="carry-dismiss">닫기</button>
+    </div>
+  </div>
+
+  <form class="add-form" id="add-form" autocomplete="off">
+    <label class="sr-only" for="new-todo">새 할 일</label>
+    <input id="new-todo" type="text" maxlength="100" placeholder="할 일을 입력하세요">
+    <label class="sr-only" for="new-priority">우선순위</label>
+    <select id="new-priority">
+      <option value="high">높음</option>
+      <option value="normal" selected>보통</option>
+      <option value="low">낮음</option>
+    </select>
+    <button type="submit" class="btn btn-primary">추가</button>
+  </form>
+  <p class="hint" id="add-hint" aria-live="polite"></p>
+
+  <section class="progress" aria-label="진행률">
+    <div class="progress-head">
+      <span id="progress-text"></span>
+      <span class="progress-percent" id="progress-percent"></span>
+    </div>
+    <div class="progress-bar" id="progress-bar" role="progressbar"
+         aria-valuemin="0" aria-valuemax="100" aria-label="오늘 진행률">
+      <div class="progress-fill" id="progress-fill"></div>
+    </div>
+  </section>
+
+  <div class="filters" role="group" aria-label="보기 필터">
+    <button type="button" class="filter" data-filter="all">전체 <span class="count"></span></button>
+    <button type="button" class="filter" data-filter="active">진행 중 <span class="count"></span></button>
+    <button type="button" class="filter" data-filter="done">완료 <span class="count"></span></button>
+  </div>
+
+  <ul class="todo-list" id="todo-list" aria-label="오늘의 할 일 목록"></ul>
+  <p class="empty" id="empty-state" hidden></p>
+
+  <footer class="app-footer">
+    <span class="help">/ 키로 입력 · 더블클릭으로 수정 · 끌어서 순서 변경</span>
+    <button type="button" class="btn btn-ghost btn-sm" id="clear-done">완료된 항목 지우기</button>
+  </footer>
+</main>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden>
+  <span id="toast-text"></span>
+  <button type="button" class="toast-action" id="toast-action" hidden></button>
+</div>
+
+<template id="todo-template">
+  <li class="todo" draggable="true">
+    <span class="handle" aria-hidden="true">⋮⋮</span>
+    <input type="checkbox" class="todo-check">
+    <span class="prio-dot" role="img"></span>
+    <span class="todo-text"></span>
+    <input type="text" class="todo-edit" maxlength="100" hidden>
+    <div class="todo-actions">
+      <button type="button" class="icon-btn" data-action="edit">✎</button>
+      <button type="button" class="icon-btn danger" data-action="remove">🗑</button>
+    </div>
+  </li>
+</template>
+
+<!-- file:// 로 열어도 동작하도록 모듈 대신 일반 스크립트를 순서대로 불러온다 -->
+<script src="js/storage.js"></script>
+<script src="js/store.js"></script>
+<script src="js/view.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
