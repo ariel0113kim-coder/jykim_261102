@@ -4,8 +4,19 @@ Next.js 16 (App Router) · TypeScript · shadcn/ui로 만든 웹 게시판입니
 
 ## 실행
 
+`.env.local`에 Neon 연결 문자열을 넣습니다 (git에 올라가지 않음).
+
+```env
+# 앱용: 풀링 연결 (호스트에 -pooler)
+DATABASE_URL="postgresql://...-pooler.../neondb?sslmode=verify-full&channel_binding=require"
+# 마이그레이션용: 직접 연결 (-pooler 없음)
+DATABASE_URL_UNPOOLED="postgresql://.../neondb?sslmode=verify-full&channel_binding=require"
+```
+
 ```bash
 npm install
+npm run db:migrate   # 테이블 생성 (처음 한 번, 스키마 변경 시)
+npm run db:seed      # 글이 없으면 환영 공지 추가
 npm run dev
 ```
 
@@ -27,14 +38,17 @@ npm run dev
 | `src/app/posts/new` | 글쓰기 |
 | `src/app/posts/[id]` | 글 상세 + 댓글 |
 | `src/app/posts/[id]/edit` | 글 수정 |
-| `src/lib/board.ts` | 데이터 저장소 (JSON 파일) |
+| `src/lib/board.ts` | 조회 쿼리 (목록·검색·상세) |
 | `src/lib/actions.ts` | 서버 액션 (작성·수정·삭제, 입력 검증) |
+| `src/db/schema.ts` | Drizzle 스키마 (`posts`, `comments`) |
+| `drizzle/` | 생성된 SQL 마이그레이션 |
 | `src/components/ui` | shadcn/ui 컴포넌트 |
 
 ## 데이터
 
-게시글은 `data/board.json`에 저장됩니다. 파일이 없으면 첫 요청 때 환영 공지 하나로 새로 만들어집니다.
-(환영 공지 비밀번호: `admin1234`) `data/`는 git에서 제외되어 있습니다.
+게시글과 댓글은 Neon Postgres에 저장됩니다 (Drizzle ORM + `pg`).
+글을 지우면 댓글도 외래 키(`ON DELETE CASCADE`)로 함께 지워집니다.
+시드로 넣는 환영 공지의 비밀번호는 `admin1234`입니다.
 
-JSON 파일 저장은 서버 한 대에서 돌리는 용도입니다. Vercel 같은 서버리스 환경에 배포하려면
-`src/lib/board.ts`를 데이터베이스(예: PostgreSQL, SQLite)로 바꿔야 합니다.
+스키마를 바꿀 때는 `src/db/schema.ts`를 고친 뒤 `npm run db:generate`로 마이그레이션을 만들고
+`npm run db:migrate`로 적용합니다.

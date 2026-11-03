@@ -2,13 +2,11 @@
 
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
-import {
-  CATEGORIES,
-  type Category,
-  hashPassword,
-  mutate,
-  verifyPassword,
-} from "@/lib/board"
+import { and, eq } from "drizzle-orm"
+import { db } from "@/db"
+import { comments, posts } from "@/db/schema"
+import { CATEGORIES, type Category } from "@/lib/categories"
+import { hashPassword, verifyPassword } from "@/lib/password"
 
 export type FormState = {
   error?: string
@@ -19,6 +17,11 @@ export type FormState = {
 }
 
 const str = (fd: FormData, key: string) => String(fd.get(key) ?? "").trim()
+
+async function postPasswordHash(id: number) {
+  const [row] = await db.select({ passwordHash: posts.passwordHash }).from(posts).where(eq(posts.id, id))
+  return row?.passwordHash
+}
 
 function validatePostFields(fd: FormData, { requireAuthorFields = true } = {}) {
   const fieldErrors: Record<string, string> = {}
@@ -51,21 +54,16 @@ export async function createPost(_prev: FormState, fd: FormData): Promise<FormSt
   const { fieldErrors, values, echo } = validatePostFields(fd)
   if (Object.keys(fieldErrors).length) return { fieldErrors, values: echo }
 
-  const id = await mutate((store) => {
-    const id = store.nextPostId++
-    store.posts.push({
-      id,
+  const [{ id }] = await db
+    .insert(posts)
+    .values({
       category: values.category,
       title: values.title,
       content: values.content,
       author: values.author,
       passwordHash: hashPassword(values.password),
-      createdAt: new Date().toISOString(),
-      updatedAt: null,
-      comments: [],
     })
-    return id
-  })
+    .returning({ id: posts.id })
 
   revalidatePath("/")
   redirect(`/posts/${id}`)
@@ -79,20 +77,20 @@ export async function updatePost(
   const { fieldErrors, values, echo } = validatePostFields(fd, { requireAuthorFields: false })
   if (Object.keys(fieldErrors).length) return { fieldErrors, values: echo }
 
-  const result = await mutate((store) => {
-    const post = store.posts.find((p) => p.id === id)
-    if (!post) return "not-found" as const
-    if (!verifyPassword(values.password, post.passwordHash)) return "forbidden" as const
-    post.category = values.category
-    post.title = values.title
-    post.content = values.content
-    post.updatedAt = new Date().toISOString()
-    return "ok" as const
-  })
-
-  if (result === "not-found") return { error: "게시글을 찾을 수 없습니다." }
-  if (result === "forbidden")
+  const hash = await postPasswordHash(id)
+  if (!hash) return { error: "게시글을 찾을 수 없습니다." }
+  if (!verifyPassword(values.password, hash))
     return { fieldErrors: { password: "비밀번호가 일치하지 않습니다." }, values: echo }
+
+  await db
+    .update(posts)
+    .set({
+      category: values.category,
+      title: values.title,
+      content: values.content,
+      updatedAt: new Date(),
+    })
+    .where(eq(posts.id, id))
 
   revalidatePath("/")
   revalidatePath(`/posts/${id}`)
@@ -105,16 +103,12 @@ export async function deletePost(
   fd: FormData
 ): Promise<FormState> {
   const password = String(fd.get("password") ?? "")
-  const result = await mutate((store) => {
-    const index = store.posts.findIndex((p) => p.id === id)
-    if (index < 0) return "not-found" as const
-    if (!verifyPassword(password, store.posts[index].passwordHash)) return "forbidden" as const
-    store.posts.splice(index, 1)
-    return "ok" as const
-  })
+  const hash = await postPasswordHash(id)
+  if (!hash) return { error: "게시글을 찾을 수 없습니다." }
+  if (!verifyPassword(password, hash)) return { error: "비밀번호가 일치하지 않습니다." }
 
-  if (result === "not-found") return { error: "게시글을 찾을 수 없습니다." }
-  if (result === "forbidden") return { error: "비밀번호가 일치하지 않습니다." }
+  // 댓글은 외래 키의 ON DELETE CASCADE로 함께 삭제됨
+  await db.delete(posts).where(eq(posts.id, id))
 
   revalidatePath("/")
   redirect("/")
@@ -135,19 +129,13 @@ export async function addComment(
     fieldErrors.password = "비밀번호는 4~20자로 입력해 주세요."
   if (Object.keys(fieldErrors).length) return { fieldErrors, values: { author, content } }
 
-  const ok = await mutate((store) => {
-    const post = store.posts.find((p) => p.id === postId)
-    if (!post) return false
-    post.comments.push({
-      id: store.nextCommentId++,
-      author,
-      content,
-      passwordHash: hashPassword(password),
-      createdAt: new Date().toISOString(),
-    })
-    return true
+  if (!(await postPasswordHash(postId))) return { error: "게시글을 찾을 수 없습니다." }
+  await db.insert(comments).values({
+    postId,
+    author,
+    content,
+    passwordHash: hashPassword(password),
   })
-  if (!ok) return { error: "게시글을 찾을 수 없습니다." }
 
   revalidatePath(`/posts/${postId}`)
   revalidatePath("/")
@@ -161,17 +149,12 @@ export async function deleteComment(
   fd: FormData
 ): Promise<FormState> {
   const password = String(fd.get("password") ?? "")
-  const result = await mutate((store) => {
-    const post = store.posts.find((p) => p.id === postId)
-    const index = post?.comments.findIndex((c) => c.id === commentId) ?? -1
-    if (!post || index < 0) return "not-found" as const
-    if (!verifyPassword(password, post.comments[index].passwordHash)) return "forbidden" as const
-    post.comments.splice(index, 1)
-    return "ok" as const
-  })
+  const where = and(eq(comments.id, commentId), eq(comments.postId, postId))
+  const [comment] = await db.select({ passwordHash: comments.passwordHash }).from(comments).where(where)
+  if (!comment) return { error: "댓글을 찾을 수 없습니다." }
+  if (!verifyPassword(password, comment.passwordHash)) return { error: "비밀번호가 일치하지 않습니다." }
 
-  if (result === "not-found") return { error: "댓글을 찾을 수 없습니다." }
-  if (result === "forbidden") return { error: "비밀번호가 일치하지 않습니다." }
+  await db.delete(comments).where(where)
 
   revalidatePath(`/posts/${postId}`)
   revalidatePath("/")
