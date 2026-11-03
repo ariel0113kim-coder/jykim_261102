@@ -4,3 +4,13 @@ qq/build/
 
 # 파이썬 캐시
 __pycache__/
+
+# S&P500 분석기 빌드 결과물
+sp500_analysis/build/
+sp500_analysis/dist/
+sp500_analysis/*.spec
+
+# 출생·사망 통계 분석기 빌드 결과물
+birth_analysis/build/
+birth_analysis/dist/
+birth_analysis/*.spec
